@@ -1758,7 +1758,6 @@ p {
     padding: 14px 12px 94px;
   }
 
-  .app-top,
   .daily-brief,
   .hero-grid,
   .dashboard-grid,
@@ -1769,6 +1768,7 @@ p {
 
   .app-top {
     display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .top-metrics {

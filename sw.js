@@ -1,4 +1,4 @@
-const CACHE_NAME = "aquamind-v8";
+const CACHE_NAME = "aquamind-v9";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -326,7 +326,7 @@ async function saveRemoteState() {
 
   if (error && !remoteSyncWarningShown) {
     remoteSyncWarningShown = true;
-    showToast("Supabase conectado. Falta criar a tabela online.");
+    showToast("Finalize a tabela do Supabase para sincronizar.");
   }
 }
 
@@ -341,7 +341,7 @@ async function loadRemoteState() {
   if (error) {
     if (!remoteSyncWarningShown) {
       remoteSyncWarningShown = true;
-      showToast("Supabase conectado. Falta criar a tabela online.");
+      showToast("Finalize a tabela do Supabase para sincronizar.");
     }
     return null;
   }
@@ -971,8 +971,22 @@ document.querySelectorAll("[data-boost]").forEach((button) => {
 el.topAccountButton.addEventListener("click", toggleAccountPanel);
 el.accountPanelClose.addEventListener("click", closeAccountPanel);
 
-el.googleAccountButton.addEventListener("click", () => {
-  showToast("Google entra na versão online. Por enquanto, use e-mail e senha.");
+el.googleAccountButton.addEventListener("click", async () => {
+  if (!supabaseClient) {
+    showToast("Supabase não carregou. Use e-mail e senha.");
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.href,
+    },
+  });
+
+  if (error) {
+    showToast("Ative o Google no Supabase ou use e-mail e senha.");
+  }
 });
 
 document.querySelectorAll(".terms-link").forEach((link) => {
