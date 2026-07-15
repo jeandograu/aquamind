@@ -8,6 +8,9 @@ create table if not exists public.aquamind_states (
 
 alter table public.aquamind_states enable row level security;
 
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.aquamind_states to authenticated;
+
 drop policy if exists "aquamind read own state" on public.aquamind_states;
 drop policy if exists "aquamind insert own state" on public.aquamind_states;
 drop policy if exists "aquamind update own state" on public.aquamind_states;

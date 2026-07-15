@@ -604,6 +604,51 @@ p {
 .reward-icon.pet::before { left: 7px; }
 .reward-icon.pet::after { right: 7px; }
 
+.ad-slot {
+  display: grid;
+  gap: 5px;
+  min-height: 86px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px dashed #b9dce8;
+  border-bottom: 4px solid #c7dde7;
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(28, 176, 246, 0.08), rgba(88, 204, 2, 0.08)),
+    #ffffff;
+  color: var(--muted);
+  text-align: center;
+}
+
+.ad-slot span {
+  color: var(--blue-dark);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.ad-slot strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.ad-slot p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 750;
+}
+
+.ad-slot.ad-live {
+  display: block;
+  min-height: 96px;
+  padding: 8px;
+  border-style: solid;
+}
+
+.ad-slot.ad-hidden {
+  display: none;
+}
+
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

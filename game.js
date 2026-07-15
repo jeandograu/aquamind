@@ -25,6 +25,7 @@ const REMOTE_STATE_TABLE = "aquamind_states";
 const SUPABASE_CONFIG = window.AQUAMIND_SUPABASE || {};
 const SUPABASE_URL = SUPABASE_CONFIG.url || "";
 const SUPABASE_KEY = SUPABASE_CONFIG.anonKey || "";
+const ADS_CONFIG = window.AQUAMIND_ADS || {};
 const supabaseClient = window.supabase?.createClient && SUPABASE_URL && SUPABASE_KEY
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
@@ -511,6 +512,63 @@ function setAuthMode(mode) {
 
 function syncCreateButton() {
   el.createAccountButton.disabled = !el.termsInput.checked;
+}
+
+function renderAds() {
+  const placements = document.querySelectorAll("[data-ad-placement]");
+  if (!placements.length) return;
+
+  const hasAdsense = ADS_CONFIG.enabled && ADS_CONFIG.client;
+  if (!hasAdsense) {
+    placements.forEach((placement) => {
+      placement.classList.toggle("ad-hidden", ADS_CONFIG.showPlaceholders === false);
+    });
+    return;
+  }
+
+  const scriptId = "aquamind-adsense";
+  const existingScript = document.querySelector('script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]');
+  if (existingScript) {
+    existingScript.id = existingScript.id || scriptId;
+  } else if (!document.querySelector(`#${scriptId}`)) {
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADS_CONFIG.client}`;
+    document.head.append(script);
+  }
+
+  placements.forEach((placement) => {
+    const name = placement.dataset.adPlacement;
+    const slot = ADS_CONFIG.slots?.[name];
+    if (!slot) {
+      placement.classList.add("ad-hidden");
+      return;
+    }
+    if (placement.dataset.loaded === "true") return;
+
+    placement.classList.remove("ad-hidden");
+    placement.classList.add("ad-live");
+    placement.dataset.loaded = "true";
+    placement.innerHTML = `
+      <ins class="adsbygoogle"
+        style="display:block"
+        data-ad-client="${ADS_CONFIG.client}"
+        data-ad-slot="${slot}"
+        data-ad-format="auto"
+        data-full-width-responsive="true"></ins>
+    `;
+
+    window.setTimeout(() => {
+      try {
+        window.adsbygoogle = window.adsbygoogle || [];
+        window.adsbygoogle.push({});
+      } catch {
+        placement.classList.remove("ad-live");
+      }
+    }, 400);
+  });
 }
 
 async function activateRemoteUser(user, options = {}) {
@@ -1189,4 +1247,5 @@ el.profileForm.addEventListener("submit", (event) => {
 
 fillProfileForm();
 render();
+renderAds();
 bootstrapRemoteAuth().catch(() => {});
