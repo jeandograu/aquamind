@@ -26,6 +26,8 @@
           </div>
         </div>
 
+        <button class="top-account-button" type="button" id="topAccountButton">Criar</button>
+
         <div class="top-metrics" aria-label="Resumo do progresso">
           <div class="metric-pill">
             <span>Sequência</span>
@@ -41,6 +43,86 @@
           </div>
         </div>
       </header>
+
+      <section class="account-drawer" id="accountPanel" aria-label="Conta AquaMind" hidden>
+        <div class="account-drawer-head">
+          <span class="mini-label">Conta AquaMind</span>
+          <button class="ghost-button" type="button" id="accountPanelClose">Fechar</button>
+        </div>
+
+        <div class="account-layout">
+          <section class="account-card auth-card">
+            <div class="auth-brand">
+              <div class="auth-logo" aria-label="AquaMind AI">
+                <span class="auth-drop"></span>
+                <strong>AquaMind</strong>
+                <span>AI</span>
+              </div>
+              <h2 id="authTitle">Bem-vindo ao AquaMind</h2>
+              <p id="accountHelpText">
+                Crie sua conta para cada pessoa ter seu próprio progresso neste aparelho.
+              </p>
+            </div>
+
+            <button class="social-button" type="button" id="googleAccountButton">
+              <span class="google-mark" aria-hidden="true">G</span>
+              Entrar com o Google
+            </button>
+
+            <form class="account-form" id="createAccountForm">
+              <input id="createNameInput" type="email" autocomplete="email" placeholder="E-mail" maxlength="64" aria-label="E-mail" required />
+              <div class="password-field">
+                <input id="createPinInput" type="password" autocomplete="new-password" placeholder="Senha" minlength="4" maxlength="32" aria-label="Senha" required />
+                <button class="password-toggle" type="button" data-password-toggle="createPinInput" aria-label="Mostrar senha">
+                  <span class="eye-icon" aria-hidden="true"></span>
+                </button>
+              </div>
+              <label class="terms-row">
+                <input id="termsInput" type="checkbox" />
+                <span>Eu aceito os <a class="terms-link" href="#termos">Termos e Condições</a></span>
+              </label>
+              <button class="auth-primary" type="submit" id="createAccountButton" disabled>Criar Conta</button>
+            </form>
+
+            <form class="account-form" id="loginForm" hidden>
+              <input id="loginEmailInput" type="email" autocomplete="email" placeholder="E-mail" maxlength="64" aria-label="E-mail" />
+              <div class="password-field">
+                <input id="loginPinInput" type="password" autocomplete="current-password" placeholder="Senha" maxlength="32" aria-label="Senha" />
+                <button class="password-toggle" type="button" data-password-toggle="loginPinInput" aria-label="Mostrar senha">
+                  <span class="eye-icon" aria-hidden="true"></span>
+                </button>
+              </div>
+              <button class="auth-primary" type="submit">Entrar</button>
+            </form>
+
+            <p class="auth-switch" id="createSwitchText">
+              Já tem uma conta? <button type="button" id="showLoginButton">Entre aqui</button>
+            </p>
+            <p class="auth-switch" id="loginSwitchText" hidden>
+              Não tem conta? <button type="button" id="showCreateButton">Crie aqui</button>
+            </p>
+          </section>
+
+          <section class="account-card account-current">
+            <div>
+              <span class="mini-label">Conta atual</span>
+              <h2 id="accountNameTitle">Nenhum perfil ativo</h2>
+              <p>Seu histórico, meta, XP e sequência ficam separados por perfil.</p>
+            </div>
+            <span id="accountStatusText">sem conta</span>
+            <div class="account-avatar" id="accountAvatar" aria-hidden="true">AM</div>
+            <button class="ghost-button account-logout" type="button" id="logoutButton">Sair da conta</button>
+          </section>
+
+          <section class="account-card account-note">
+            <strong>Importante</strong>
+            <p>
+              Esta versão ainda não tem servidor. A conta separa os dados no navegador atual.
+              Para entrar no mesmo perfil em outro celular, o próximo passo é ligar Supabase ou Firebase.
+            </p>
+          </section>
+        </div>
+      </section>
 
       <main class="screen">
         <section class="tab-panel active" id="homePanel" aria-labelledby="tabHome">
@@ -396,6 +478,8 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="game.js"></script>
     <script>
       if ("serviceWorker" in navigator) {

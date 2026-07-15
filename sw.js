@@ -1,9 +1,10 @@
-const CACHE_NAME = "aquamind-v2";
+const CACHE_NAME = "aquamind-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./game.js",
+  "./supabase-config.js",
   "./manifest.webmanifest",
   "./icons/aquamind-icon.svg"
 ];

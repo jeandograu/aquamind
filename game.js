@@ -18,6 +18,23 @@ const badges = [
   { key: "perfect", title: "Meta perfeita", detail: "100% em um dia", symbol: "OK" },
 ];
 
+const ACCOUNTS_KEY = "aquamind-accounts-v1";
+const STATE_KEY_PREFIX = "aquamind-state:";
+const LEGACY_STATE_KEY = "aquamind-state";
+const REMOTE_STATE_TABLE = "aquamind_states";
+const SUPABASE_CONFIG = window.AQUAMIND_SUPABASE || {};
+const SUPABASE_URL = SUPABASE_CONFIG.url || "";
+const SUPABASE_KEY = SUPABASE_CONFIG.anonKey || "";
+const supabaseClient = window.supabase?.createClient && SUPABASE_URL && SUPABASE_KEY
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    })
+  : null;
+
 const defaultState = {
   goal: 3000,
   current: 1400,
@@ -58,8 +75,13 @@ const defaultState = {
   ],
 };
 
+let accountStore = loadAccounts();
+let activeAccountId = accountStore.users?.[accountStore.activeId] ? accountStore.activeId : null;
 let state = loadState();
 let toastTimer = null;
+let remoteUser = null;
+let remoteSyncTimer = null;
+let remoteSyncWarningShown = false;
 
 const el = {
   dailyBriefTitle: document.querySelector("#dailyBriefTitle"),
@@ -105,6 +127,28 @@ const el = {
   levelRoad: document.querySelector("#levelRoad"),
   nextLevelText: document.querySelector("#nextLevelText"),
   smartGoalText: document.querySelector("#smartGoalText"),
+  topAccountButton: document.querySelector("#topAccountButton"),
+  accountPanel: document.querySelector("#accountPanel"),
+  accountPanelClose: document.querySelector("#accountPanelClose"),
+  authTitle: document.querySelector("#authTitle"),
+  accountNameTitle: document.querySelector("#accountNameTitle"),
+  accountStatusText: document.querySelector("#accountStatusText"),
+  accountHelpText: document.querySelector("#accountHelpText"),
+  accountAvatar: document.querySelector("#accountAvatar"),
+  googleAccountButton: document.querySelector("#googleAccountButton"),
+  createAccountForm: document.querySelector("#createAccountForm"),
+  createNameInput: document.querySelector("#createNameInput"),
+  createPinInput: document.querySelector("#createPinInput"),
+  termsInput: document.querySelector("#termsInput"),
+  createAccountButton: document.querySelector("#createAccountButton"),
+  loginForm: document.querySelector("#loginForm"),
+  loginEmailInput: document.querySelector("#loginEmailInput"),
+  loginPinInput: document.querySelector("#loginPinInput"),
+  createSwitchText: document.querySelector("#createSwitchText"),
+  loginSwitchText: document.querySelector("#loginSwitchText"),
+  showLoginButton: document.querySelector("#showLoginButton"),
+  showCreateButton: document.querySelector("#showCreateButton"),
+  logoutButton: document.querySelector("#logoutButton"),
   profileForm: document.querySelector("#profileForm"),
   sexInput: document.querySelector("#sexInput"),
   weightInput: document.querySelector("#weightInput"),
@@ -126,11 +170,108 @@ const el = {
   toast: document.querySelector("#toast"),
 };
 
-function loadState() {
+function createFreshState() {
+  const freshState = JSON.parse(JSON.stringify(defaultState));
+  return {
+    ...freshState,
+    date: todayKey,
+    current: 0,
+    entries: 0,
+    streak: 0,
+    bestStreak: 0,
+    missedDays: 0,
+    xp: 0,
+    totalMl: 0,
+    boosts: {
+      workout: false,
+      heat: false,
+    },
+    week: [0, 0, 0, 0, 0, 0, 0],
+    calendar: Array(21).fill(0),
+  };
+}
+
+function normalizeName(name) {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function accountNameKey(name) {
+  return normalizeName(name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function makeAccountId(name) {
+  const slug = normalizeName(name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 18) || "perfil";
+  return `${slug}-${Date.now().toString(36)}`;
+}
+
+function loadAccounts() {
   try {
-    const saved = JSON.parse(localStorage.getItem("aquamind-state") || "null");
+    const saved = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "null");
+    if (saved?.users) return saved;
+
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_STATE_KEY) || "null");
+    if (legacy) {
+      const id = "visitante";
+      const migrated = {
+        activeId: id,
+        users: {
+          [id]: {
+            id,
+            name: "Visitante",
+            pin: "0000",
+            createdAt: new Date().toISOString(),
+          },
+        },
+      };
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(migrated));
+      localStorage.setItem(`${STATE_KEY_PREFIX}${id}`, JSON.stringify(legacy));
+      return migrated;
+    }
+  } catch {
+    return { activeId: null, users: {} };
+  }
+  return { activeId: null, users: {} };
+}
+
+function saveAccounts() {
+  accountStore.activeId = activeAccountId;
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accountStore));
+}
+
+function getActiveAccount() {
+  return activeAccountId ? accountStore.users[activeAccountId] : null;
+}
+
+function loadState() {
+  if (!activeAccountId) {
+    return createFreshState();
+  }
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(`${STATE_KEY_PREFIX}${activeAccountId}`) || "null");
     if (!saved || saved.date !== todayKey) {
-      return { ...defaultState, date: todayKey };
+      return {
+        ...createFreshState(),
+        ...(saved || {}),
+        date: todayKey,
+        current: 0,
+        entries: 0,
+        boosts: {
+          workout: false,
+          heat: false,
+        },
+        week: Array.isArray(saved?.week) ? [...saved.week.slice(0, 6), 0] : [0, 0, 0, 0, 0, 0, 0],
+        calendar: Array.isArray(saved?.calendar) ? [...saved.calendar.slice(0, 20), 0] : Array(21).fill(0),
+      };
     }
     const merged = {
       ...defaultState,
@@ -148,7 +289,88 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem("aquamind-state", JSON.stringify(state));
+  if (!activeAccountId) return;
+  localStorage.setItem(`${STATE_KEY_PREFIX}${activeAccountId}`, JSON.stringify(state));
+  queueRemoteSave();
+}
+
+function remoteAccountId(userId) {
+  return `supabase-${userId}`;
+}
+
+function shouldSyncRemote() {
+  return Boolean(supabaseClient && remoteUser && activeAccountId === remoteAccountId(remoteUser.id));
+}
+
+function queueRemoteSave() {
+  if (!shouldSyncRemote()) return;
+  window.clearTimeout(remoteSyncTimer);
+  remoteSyncTimer = window.setTimeout(() => {
+    saveRemoteState();
+  }, 700);
+}
+
+async function saveRemoteState() {
+  if (!shouldSyncRemote()) return;
+  const account = getActiveAccount();
+  const payload = {
+    user_id: remoteUser.id,
+    email: remoteUser.email,
+    name: account?.name || emailToAccountName(remoteUser.email || ""),
+    state,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabaseClient
+    .from(REMOTE_STATE_TABLE)
+    .upsert(payload, { onConflict: "user_id" });
+
+  if (error && !remoteSyncWarningShown) {
+    remoteSyncWarningShown = true;
+    showToast("Supabase conectado. Falta criar a tabela online.");
+  }
+}
+
+async function loadRemoteState() {
+  if (!remoteUser || !supabaseClient) return null;
+  const { data, error } = await supabaseClient
+    .from(REMOTE_STATE_TABLE)
+    .select("state, name, email")
+    .eq("user_id", remoteUser.id)
+    .maybeSingle();
+
+  if (error) {
+    if (!remoteSyncWarningShown) {
+      remoteSyncWarningShown = true;
+      showToast("Supabase conectado. Falta criar a tabela online.");
+    }
+    return null;
+  }
+  return data?.state || null;
+}
+
+function normalizeLoadedState(saved) {
+  const merged = {
+    ...defaultState,
+    ...saved,
+    boosts: { ...defaultState.boosts, ...saved?.boosts },
+    profile: { ...defaultState.profile, ...saved?.profile },
+  };
+  if (merged.date !== todayKey) {
+    return {
+      ...createFreshState(),
+      ...merged,
+      date: todayKey,
+      current: 0,
+      entries: 0,
+      boosts: {
+        workout: false,
+        heat: false,
+      },
+      week: Array.isArray(merged.week) ? [...merged.week.slice(0, 6), 0] : [0, 0, 0, 0, 0, 0, 0],
+      calendar: Array.isArray(merged.calendar) ? [...merged.calendar.slice(0, 20), 0] : Array(21).fill(0),
+    };
+  }
+  return merged;
 }
 
 function formatMl(value) {
@@ -208,7 +430,139 @@ function showToast(message) {
   toastTimer = setTimeout(() => el.toast.classList.remove("show"), 2300);
 }
 
+function switchTab(tabId) {
+  const targetPanel = document.querySelector(`#${tabId}`);
+  const targetButton = document.querySelector(`.bottom-nav button[data-tab="${tabId}"]`);
+  if (!targetPanel || !targetButton) return;
+
+  document.querySelectorAll(".bottom-nav button").forEach((button) => button.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
+  targetButton.classList.add("active");
+  targetPanel.classList.add("active");
+}
+
+function openAccountPanel(mode = "create") {
+  setAuthMode(mode);
+  el.accountPanel.hidden = false;
+  el.topAccountButton.classList.add("active");
+  el.accountPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeAccountPanel() {
+  el.accountPanel.hidden = true;
+  el.topAccountButton.classList.remove("active");
+}
+
+function toggleAccountPanel() {
+  if (el.accountPanel.hidden) {
+    openAccountPanel(getActiveAccount() ? "login" : "create");
+    return;
+  }
+  closeAccountPanel();
+}
+
+function requireAccount() {
+  if (getActiveAccount()) return true;
+  showToast("Crie uma conta para salvar seus dados.");
+  openAccountPanel("create");
+  return false;
+}
+
+function accountInitials(name) {
+  const parts = normalizeName(name).split(" ").filter(Boolean);
+  const first = parts[0]?.charAt(0) || "A";
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "M";
+  return `${first}${last}`.toUpperCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function emailToAccountName(email) {
+  return normalizeName(email.split("@")[0].replace(/[._-]+/g, " ")) || "Perfil";
+}
+
+function findLocalAccountByEmail(email) {
+  const normalized = email.trim().toLowerCase();
+  return Object.values(accountStore.users || {}).find((account) =>
+    (account.email || "").toLowerCase() === normalized ||
+    accountNameKey(account.name) === accountNameKey(normalized)
+  );
+}
+
+function authErrorMessage(error) {
+  const message = error?.message || "";
+  if (/invalid login credentials/i.test(message)) return "E-mail ou senha incorretos.";
+  if (/already registered|already exists|user already/i.test(message)) return "Esse e-mail já está cadastrado.";
+  if (/password/i.test(message)) return "Confira a senha e tente novamente.";
+  if (/email/i.test(message)) return "Confira o e-mail e tente novamente.";
+  return "Não consegui conectar ao Supabase agora.";
+}
+
+function setAuthMode(mode) {
+  const isLogin = mode === "login";
+  el.authTitle.textContent = isLogin ? "Entre no AquaMind" : "Bem-vindo ao AquaMind";
+  el.createAccountForm.hidden = isLogin;
+  el.loginForm.hidden = !isLogin;
+  el.createSwitchText.hidden = isLogin;
+  el.loginSwitchText.hidden = !isLogin;
+}
+
+function syncCreateButton() {
+  el.createAccountButton.disabled = !el.termsInput.checked;
+}
+
+async function activateRemoteUser(user, options = {}) {
+  if (!user) return;
+  saveState();
+  remoteUser = user;
+  const email = user.email || options.email || "";
+  const name = emailToAccountName(email);
+  const id = remoteAccountId(user.id);
+
+  accountStore.users[id] = {
+    id,
+    name,
+    email,
+    pin: "",
+    remote: true,
+    createdAt: new Date().toISOString(),
+  };
+  activeAccountId = id;
+  saveAccounts();
+
+  const remoteState = await loadRemoteState();
+  state = remoteState ? normalizeLoadedState(remoteState) : loadState();
+  state.goal = calculateGoalFromProfile(state.profile);
+  localStorage.setItem(`${STATE_KEY_PREFIX}${activeAccountId}`, JSON.stringify(state));
+  await saveRemoteState();
+
+  fillProfileForm();
+  render();
+  if (!options.keepPanelOpen) closeAccountPanel();
+}
+
+async function bootstrapRemoteAuth() {
+  if (!supabaseClient) return;
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (!error && data.session?.user) {
+    await activateRemoteUser(data.session.user);
+  }
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session?.user && session.user.id !== remoteUser?.id) {
+      activateRemoteUser(session.user);
+    }
+    if (event === "SIGNED_OUT") {
+      remoteUser = null;
+    }
+  });
+}
+
 function addWater(amount) {
+  if (!requireAccount()) return;
+
   const before = progressRatio();
   const xpBefore = state.xp;
   state.current = clamp(state.current + amount, 0, Math.round(state.goal * 1.25));
@@ -244,6 +598,8 @@ function pulseFeedback(xpBefore) {
 }
 
 function resetDay() {
+  if (!requireAccount()) return;
+
   state.current = 0;
   state.entries = 0;
   state.week[6] = 0;
@@ -495,6 +851,38 @@ function renderQuests() {
   }).join("");
 }
 
+function renderAccount() {
+  const account = getActiveAccount();
+  const loginButton = el.loginForm.querySelector("button[type='submit']");
+
+  el.topAccountButton.textContent = account ? accountInitials(account.name) : "Criar";
+  el.topAccountButton.setAttribute("aria-label", account ? "Abrir conta" : "Criar conta");
+
+  el.loginEmailInput.disabled = false;
+  el.loginPinInput.disabled = false;
+  loginButton.disabled = false;
+  el.logoutButton.disabled = !account;
+
+  if (!account) {
+    el.accountNameTitle.textContent = "Nenhum perfil ativo";
+    el.accountStatusText.textContent = "sem conta";
+    el.accountHelpText.textContent = supabaseClient
+      ? "Crie sua conta para sincronizar o AquaMind em outros celulares."
+      : "Modo local ativo. O Supabase não carregou, então os dados ficam neste aparelho.";
+    el.accountAvatar.textContent = "AM";
+    syncCreateButton();
+    return;
+  }
+
+  el.accountNameTitle.textContent = `Olá, ${account.name}`;
+  el.accountStatusText.textContent = account.remote ? "online" : "local";
+  el.accountHelpText.textContent = account.remote
+    ? "Conta online conectada. Seus dados sincronizam pelo Supabase."
+    : "Conta local ativa. Para sincronizar, entre com uma conta Supabase.";
+  el.accountAvatar.textContent = accountInitials(account.name);
+  syncCreateButton();
+}
+
 function fillProfileForm() {
   const profile = state.profile;
   el.sexInput.value = profile.sex;
@@ -545,6 +933,7 @@ function render() {
   renderHome();
   renderDashboard();
   renderQuests();
+  renderAccount();
   el.smartGoalText.textContent = formatMl(state.goal);
   saveState();
 }
@@ -564,6 +953,8 @@ el.resetDay.addEventListener("click", resetDay);
 
 document.querySelectorAll("[data-boost]").forEach((button) => {
   button.addEventListener("click", () => {
+    if (!requireAccount()) return;
+
     const boost = button.dataset.boost;
     if (boost === "coffee") {
       state.profile.coffee += 1;
@@ -577,17 +968,202 @@ document.querySelectorAll("[data-boost]").forEach((button) => {
   });
 });
 
-document.querySelectorAll(".bottom-nav button").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".bottom-nav button").forEach((item) => item.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
-    button.classList.add("active");
-    document.querySelector(`#${button.dataset.tab}`).classList.add("active");
+el.topAccountButton.addEventListener("click", toggleAccountPanel);
+el.accountPanelClose.addEventListener("click", closeAccountPanel);
+
+el.googleAccountButton.addEventListener("click", () => {
+  showToast("Google entra na versão online. Por enquanto, use e-mail e senha.");
+});
+
+document.querySelectorAll(".terms-link").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    showToast("Termos e Condições serão ligados na versão publicada.");
   });
+});
+
+el.termsInput.addEventListener("change", syncCreateButton);
+el.showLoginButton.addEventListener("click", () => setAuthMode("login"));
+el.showCreateButton.addEventListener("click", () => setAuthMode("create"));
+
+document.querySelectorAll("[data-password-toggle]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const input = document.querySelector(`#${button.dataset.passwordToggle}`);
+    if (!input) return;
+    const shouldShow = input.type === "password";
+    input.type = shouldShow ? "text" : "password";
+    button.setAttribute("aria-label", shouldShow ? "Ocultar senha" : "Mostrar senha");
+    button.classList.toggle("visible", shouldShow);
+  });
+});
+
+el.createAccountForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const email = el.createNameInput.value.trim().toLowerCase();
+  const name = emailToAccountName(email);
+  const password = el.createPinInput.value.trim();
+  const emailExists = Object.values(accountStore.users || {}).some(
+    (account) =>
+      (account.email || "").toLowerCase() === email ||
+      (!account.email && accountNameKey(account.name) === accountNameKey(name))
+  );
+
+  if (!isValidEmail(email)) {
+    showToast("Digite um e-mail válido.");
+    return;
+  }
+
+  if (password.length < 4) {
+    showToast("Use uma senha com pelo menos 4 caracteres.");
+    return;
+  }
+
+  if (!el.termsInput.checked) {
+    showToast("Aceite os termos para criar a conta.");
+    return;
+  }
+
+  if (emailExists) {
+    showToast("Já existe uma conta com esse e-mail.");
+    return;
+  }
+
+  if (supabaseClient) {
+    el.createAccountButton.disabled = true;
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+      },
+    });
+    syncCreateButton();
+
+    if (error) {
+      showToast(authErrorMessage(error));
+      return;
+    }
+
+    el.createAccountForm.reset();
+    syncCreateButton();
+
+    if (data.session?.user) {
+      await activateRemoteUser(data.session.user);
+      switchTab("homePanel");
+      showToast(`Conta online de ${name} criada.`);
+      return;
+    }
+
+    el.loginEmailInput.value = email;
+    setAuthMode("login");
+    showToast("Conta criada. Confirme seu e-mail e depois entre.");
+    return;
+  }
+
+  saveState();
+  const id = makeAccountId(name);
+  accountStore.users[id] = {
+    id,
+    name,
+    email,
+    pin: password,
+    createdAt: new Date().toISOString(),
+  };
+  activeAccountId = id;
+  saveAccounts();
+  state = createFreshState();
+  state.goal = calculateGoalFromProfile(state.profile);
+  saveState();
+
+  el.createAccountForm.reset();
+  syncCreateButton();
+  fillProfileForm();
+  render();
+  closeAccountPanel();
+  switchTab("homePanel");
+  showToast(`Conta de ${name} criada.`);
+});
+
+el.loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const email = el.loginEmailInput.value.trim().toLowerCase();
+  const password = el.loginPinInput.value.trim();
+
+  if (!isValidEmail(email)) {
+    showToast("Digite o e-mail da conta.");
+    return;
+  }
+
+  if (!password) {
+    showToast("Digite sua senha.");
+    return;
+  }
+
+  if (supabaseClient) {
+    const loginButton = el.loginForm.querySelector("button[type='submit']");
+    loginButton.disabled = true;
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+    loginButton.disabled = false;
+
+    if (error) {
+      showToast(authErrorMessage(error));
+      return;
+    }
+
+    await activateRemoteUser(data.user, { email });
+    el.loginForm.reset();
+    switchTab("homePanel");
+    showToast(`Entrou como ${emailToAccountName(email)}.`);
+    return;
+  }
+
+  const account = findLocalAccountByEmail(email);
+
+  if (!account || password !== account.pin) {
+    showToast("E-mail ou senha incorretos.");
+    return;
+  }
+
+  saveState();
+  activeAccountId = account.id;
+  saveAccounts();
+  state = loadState();
+  el.loginForm.reset();
+  fillProfileForm();
+  render();
+  closeAccountPanel();
+  switchTab("homePanel");
+  showToast(`Entrou como ${account.name}.`);
+});
+
+el.logoutButton.addEventListener("click", async () => {
+  saveState();
+  if (supabaseClient && remoteUser) {
+    await supabaseClient.auth.signOut();
+  }
+  remoteUser = null;
+  activeAccountId = null;
+  saveAccounts();
+  state = createFreshState();
+  fillProfileForm();
+  render();
+  openAccountPanel("create");
+  showToast("Você saiu da conta.");
+});
+
+document.querySelectorAll(".bottom-nav button").forEach((button) => {
+  button.addEventListener("click", () => switchTab(button.dataset.tab));
 });
 
 el.profileForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!requireAccount()) return;
+
   state.profile = readProfileForm();
   state.goal = calculateGoalFromProfile(state.profile);
   state.week[6] = state.current;
@@ -599,3 +1175,4 @@ el.profileForm.addEventListener("submit", (event) => {
 
 fillProfileForm();
 render();
+bootstrapRemoteAuth().catch(() => {});
