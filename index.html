@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="AquaMind, seu assistente inteligente de hidratação com IA, desafios e gamificação."
+    />
+    <title>AquaMind | Assistente inteligente de hidratação</title>
+    <meta name="theme-color" content="#58cc02" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/aquamind-icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-top">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true">
+            <span class="brand-drop"></span>
+          </div>
+          <div>
+            <p class="eyebrow">AquaMind</p>
+            <h1>Seu assistente inteligente de hidratação.</h1>
+          </div>
+        </div>
+
+        <div class="top-metrics" aria-label="Resumo do progresso">
+          <div class="metric-pill">
+            <span>Sequência</span>
+            <strong id="streakText">5d</strong>
+          </div>
+          <div class="metric-pill">
+            <span>XP</span>
+            <strong id="xpText">1280</strong>
+          </div>
+          <div class="metric-pill">
+            <span>Nível</span>
+            <strong id="levelShortText">Golfinho</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="screen">
+        <section class="tab-panel active" id="homePanel" aria-labelledby="tabHome">
+          <section class="daily-brief" aria-label="Resumo inteligente do dia">
+            <div class="buddy" id="buddy" aria-hidden="true">
+              <span class="buddy-shine"></span>
+              <span class="buddy-eye left"></span>
+              <span class="buddy-eye right"></span>
+              <span class="buddy-mouth"></span>
+            </div>
+            <div>
+              <span class="mini-label">Missão diária</span>
+              <h2 id="dailyBriefTitle">Proteja sua sequência</h2>
+              <p id="dailyBriefText">Registre mais 2 copos para deixar o Pingo no modo feliz.</p>
+            </div>
+            <div class="brief-reward">
+              <span>recompensa</span>
+              <strong id="dailyRewardText">+50 XP</strong>
+            </div>
+          </section>
+
+          <section class="lesson-path" aria-label="Jornada diária">
+            <div class="section-head path-head">
+              <div>
+                <span class="mini-label">Jornada de hoje</span>
+                <h2>Caminho da água</h2>
+              </div>
+              <span id="questScore">1/4 feitas</span>
+            </div>
+            <div class="path-track" id="pathTrack"></div>
+          </section>
+
+          <div class="hero-grid">
+            <section class="progress-zone" aria-label="Registro de água de hoje">
+              <div class="section-head">
+                <div>
+                  <span class="league-badge" id="levelName">Liga Golfinho</span>
+                  <h2>Lição atual</h2>
+                </div>
+                <button class="ghost-button" type="button" id="resetDay">Reiniciar</button>
+              </div>
+
+              <div class="progress-orbit" id="progressRing" aria-live="polite">
+                <div class="ring-core">
+                  <span id="litersText">1,4L / 3,0L</span>
+                  <strong id="percentText">46%</strong>
+                  <small>meta diária</small>
+                </div>
+              </div>
+
+              <div class="goal-row">
+                <span id="remainingText">Faltam 1,6L</span>
+                <span id="paceText">2 copos atrás</span>
+              </div>
+
+              <div class="reward-strip" aria-label="Recompensas de hoje">
+                <div>
+                  <span class="reward-icon streak"></span>
+                  <strong id="streakRewardText">Sequência ativa</strong>
+                </div>
+                <div>
+                  <span class="reward-icon xp"></span>
+                  <strong id="xpRewardText">+35 XP hoje</strong>
+                </div>
+                <div>
+                  <span class="reward-icon pet"></span>
+                  <strong id="petRewardText">Pet acordado</strong>
+                </div>
+              </div>
+
+              <div class="quick-grid" aria-label="Atalhos de quantidade">
+                <button type="button" data-add="250">+250 ml</button>
+                <button type="button" data-add="500">+500 ml</button>
+                <button type="button" data-add="750">+750 ml</button>
+              </div>
+
+              <div class="custom-row">
+                <label for="customAmount">Personalizado</label>
+                <input id="customAmount" type="number" min="50" max="2000" step="50" value="300" />
+                <button type="button" id="addCustom">Adicionar</button>
+              </div>
+
+              <button class="primary-cta" type="button" id="drinkButton">Registrar 250 ml</button>
+            </section>
+
+            <aside class="coach-zone" aria-label="IA Coach e pet virtual">
+              <section class="coach-panel">
+                <div class="section-head compact">
+                  <div>
+                    <span class="mini-label">IA Coach</span>
+                    <h2>Próxima ação</h2>
+                  </div>
+                  <span class="status-dot" id="coachStatus">ao vivo</span>
+                </div>
+                <p id="coachMessage">
+                  Você está 500 ml atrás da meta. Faltam apenas 2 copos para voltar ao ritmo.
+                </p>
+                <div class="coach-actions">
+                  <button type="button" data-boost="workout">Treino feito</button>
+                  <button type="button" data-boost="coffee">Bebi café</button>
+                  <button type="button" data-boost="heat">Dia quente</button>
+                </div>
+              </section>
+
+              <section class="pet-panel">
+                <div class="tank" aria-label="Aquário do pet virtual">
+                  <div class="tank-water" id="tankWater"></div>
+                  <div class="pet-fish" id="petFish" aria-hidden="true">
+                    <span class="fish-tail"></span>
+                    <span class="fish-body"></span>
+                    <span class="fish-eye"></span>
+                  </div>
+                  <div class="bubble bubble-one"></div>
+                  <div class="bubble bubble-two"></div>
+                  <div class="bubble bubble-three"></div>
+                </div>
+                <div>
+                  <span class="mini-label">Pet virtual</span>
+                  <h3 id="petMood">Aquário em recuperação</h3>
+                  <p id="petHint">Quanto mais água você registra, mais cheio e vivo ele fica.</p>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="dashboardPanel" aria-labelledby="tabDashboard">
+          <div class="dashboard-grid">
+            <section class="summary-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Dashboard</span>
+                  <h2>Seu corpo hoje</h2>
+                </div>
+                <span id="bodyScore">46%</span>
+              </div>
+
+              <div class="body-map" aria-label="Mapa do corpo hidratado">
+                <div class="body-fill" id="bodyFill"></div>
+                <div class="body-head"></div>
+                <div class="body-torso"></div>
+                <div class="body-arm left"></div>
+                <div class="body-arm right"></div>
+                <div class="body-leg left"></div>
+                <div class="body-leg right"></div>
+              </div>
+              <p id="bodyMessage">A silhueta fica mais azul conforme você se aproxima da meta.</p>
+            </section>
+
+            <section class="stats-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Números</span>
+                  <h2>Resumo</h2>
+                </div>
+              </div>
+              <div class="stat-grid">
+                <div><span>Total</span><strong id="totalLiters">126L</strong></div>
+                <div><span>Média</span><strong id="averageText">2,6L</strong></div>
+                <div><span>Melhor seq.</span><strong id="bestStreakText">11d</strong></div>
+                <div><span>Dias perdidos</span><strong id="missedDaysText">3</strong></div>
+              </div>
+            </section>
+
+            <section class="chart-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Semana</span>
+                  <h2>Gráfico diário</h2>
+                </div>
+                <span id="weekAverage">média 2,5L</span>
+              </div>
+              <div class="bar-chart" id="barChart" aria-label="Consumo semanal"></div>
+            </section>
+
+            <section class="calendar-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Calendário</span>
+                  <h2>Últimos 21 dias</h2>
+                </div>
+              </div>
+              <div class="calendar-grid" id="calendarGrid" aria-label="Calendário por cor"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="questsPanel" aria-labelledby="tabQuests">
+          <div class="quest-layout">
+            <section class="challenge-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Desafios</span>
+                  <h2>Metas que prendem o hábito</h2>
+                </div>
+              </div>
+              <div class="challenge-list" id="challengeList"></div>
+            </section>
+
+            <section class="badge-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Medalhas</span>
+                  <h2>Conquistas</h2>
+                </div>
+              </div>
+              <div class="badge-grid" id="badgeGrid"></div>
+            </section>
+
+            <section class="levels-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Liga Aqua</span>
+                  <h2>Seu caminho</h2>
+                </div>
+                <span id="nextLevelText">Faltam 220 XP</span>
+              </div>
+              <div class="level-road" id="levelRoad"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="profilePanel" aria-labelledby="tabProfile">
+          <form class="profile-form" id="profileForm">
+            <section class="form-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Cadastro</span>
+                  <h2>Meta inteligente</h2>
+                </div>
+                <span id="smartGoalText">3,0L</span>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Sexo
+                  <select id="sexInput">
+                    <option value="feminino">Feminino</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </label>
+                <label>
+                  Peso
+                  <input id="weightInput" type="number" min="30" max="220" value="72" />
+                </label>
+                <label>
+                  Altura
+                  <input id="heightInput" type="number" min="120" max="230" value="170" />
+                </label>
+                <label>
+                  Idade
+                  <input id="ageInput" type="number" min="8" max="100" value="29" />
+                </label>
+                <label>
+                  Cidade
+                  <input id="cityInput" type="text" value="São Paulo" />
+                </label>
+                <label>
+                  Clima
+                  <select id="climateInput">
+                    <option value="normal">Normal</option>
+                    <option value="quente">Quente</option>
+                    <option value="frio">Frio</option>
+                    <option value="seco">Seco</option>
+                  </select>
+                </label>
+                <label>
+                  Exercício diário
+                  <input id="exerciseInput" type="number" min="0" max="240" step="5" value="45" />
+                </label>
+                <label>
+                  Acorda
+                  <input id="wakeInput" type="time" value="06:30" />
+                </label>
+                <label>
+                  Dorme
+                  <input id="sleepInput" type="time" value="23:00" />
+                </label>
+              </div>
+            </section>
+
+            <section class="form-panel">
+              <div class="section-head">
+                <div>
+                  <span class="mini-label">Contexto</span>
+                  <h2>Ajustes da IA</h2>
+                </div>
+              </div>
+
+              <div class="context-grid">
+                <label>
+                  Cafés hoje
+                  <input id="coffeeInput" type="number" min="0" max="12" value="1" />
+                </label>
+                <label class="check-row">
+                  <input id="alcoholInput" type="checkbox" />
+                  Álcool
+                </label>
+                <label class="check-row">
+                  <input id="feverInput" type="checkbox" />
+                  Febre
+                </label>
+                <label class="check-row">
+                  <input id="diarrheaInput" type="checkbox" />
+                  Diarreia
+                </label>
+                <label class="check-row">
+                  <input id="pregnancyInput" type="checkbox" />
+                  Gravidez
+                </label>
+                <label class="check-row">
+                  <input id="altitudeInput" type="checkbox" />
+                  Altitude
+                </label>
+                <label class="check-row">
+                  <input id="travelInput" type="checkbox" />
+                  Viagem
+                </label>
+                <label class="check-row">
+                  <input id="medicineInput" type="checkbox" />
+                  Medicamentos
+                </label>
+              </div>
+
+              <button class="primary-cta slim" type="submit">Recalcular meta com IA</button>
+              <p class="medical-note">
+                O AquaMind ajuda a criar hábito, mas não substitui orientação médica.
+              </p>
+            </section>
+          </form>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Navegação principal">
+        <button class="active" type="button" id="tabHome" data-tab="homePanel">
+          <span class="nav-icon water"></span>
+          Hoje
+        </button>
+        <button type="button" id="tabDashboard" data-tab="dashboardPanel">
+          <span class="nav-icon chart"></span>
+          Dados
+        </button>
+        <button type="button" id="tabQuests" data-tab="questsPanel">
+          <span class="nav-icon trophy"></span>
+          Missões
+        </button>
+        <button type="button" id="tabProfile" data-tab="profilePanel">
+          <span class="nav-icon user"></span>
+          Perfil
+        </button>
+      </nav>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="game.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js").catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

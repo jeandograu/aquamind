@@ -1,0 +1,19 @@
+{
+  "name": "AquaMind",
+  "short_name": "AquaMind",
+  "description": "Seu assistente inteligente de hidratação.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f7f7",
+  "theme_color": "#58cc02",
+  "icons": [
+    {
+      "src": "icons/aquamind-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
